@@ -3,7 +3,7 @@ import {
 	ChoiceNotFoundError,
 	createMcqService,
 	McqNotFoundError,
-} from "./mcq-service";
+} from "@/lib/services/mcq-service";
 
 const mcqRow = {
 	id: "mcq-1",

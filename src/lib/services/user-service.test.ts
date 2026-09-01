@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hashPasswordServer } from "@/lib/password-server";
-import { createUserService, DuplicateUserError } from "./user-service";
+import { createUserService, DuplicateUserError } from "@/lib/services/user-service";
 
 const sampleRow = {
 	id: "user-1",

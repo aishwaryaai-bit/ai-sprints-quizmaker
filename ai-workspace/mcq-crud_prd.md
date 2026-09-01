@@ -1,5 +1,5 @@
 Date created: September 1, 2026
-Date last modified: September 1, 2026 (Phase 2 complete)
+Date last modified: September 1, 2026 (Phase 3 complete)
 
 # MCQ Create, Read, Update, and Delete - Technical PRD
 
@@ -529,7 +529,7 @@ npm run lint                                                                    
 
 ---
 
-### Phase 3: API Route Handlers - PLANNED
+### Phase 3: API Route Handlers - COMPLETED
 
 **Objective:** MCQ CRUD and attempt HTTP endpoints wired to the service; behavior locked by route tests.
 
@@ -582,12 +582,20 @@ vi.mock("@/lib/services/mcq-service", () => ({
 
 **Phase acceptance criteria:**
 
-- [ ] All Phase 3 route tests pass
-- [ ] Status codes and JSON shapes match this PRD
+- [x] All Phase 3 route tests pass
+- [x] Status codes and JSON shapes match this PRD
 
 **Deliverables:**
 
 - Three route modules + three test files
+
+**Phase 3 verification (September 1, 2026):**
+
+```
+npm run test -- src/app/api/mcqs  → 13 passed
+npm run test                      → 90 passed (18 files)
+npm run lint                      → clean (no errors in src)
+```
 
 **⏸ Stop for review before Phase 4.**
 
@@ -747,8 +755,8 @@ export async function GET() {
 - [x] Phase 2 unit tests pass (validators + service)
 - [x] Creating an MCQ with 2–6 choices persists MCQ and choice rows
 - [x] Exactly one correct choice enforced on create and update
-- [ ] Phase 3 route handler tests pass
-- [ ] List, create, get, update, delete, and attempt endpoints return documented status codes
+- [x] Phase 3 route handler tests pass
+- [x] List, create, get, update, delete, and attempt endpoints return documented status codes
 - [ ] Phase 4 component tests pass
 - [ ] `/mcq` displays shadcn table with name, description, and actions dropdown
 - [ ] Create and edit forms support 2–6 choices with save/cancel
@@ -843,14 +851,15 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated:** September 1, 2026  
-**Current Phase:** Phase 2 — MCQ Service and Validators (complete; awaiting review)  
-**Status:** Phase 2 COMPLETED — stop for product-owner review before Phase 3  
-**Next Steps:** Review Phase 2 deliverables; upon approval, begin Phase 3 (API route handlers)
+**Current Phase:** Phase 3 — API Route Handlers (complete; awaiting review)  
+**Status:** Phase 3 COMPLETED — stop for product-owner review before Phase 4  
+**Next Steps:** Review Phase 3 deliverables; upon approval, begin Phase 4 (UI pages and components)
 
 **Existing codebase notes:**
 
 - `/mcq` stub page exists at `src/app/mcq/page.tsx`
-- Empty route directories may exist from scaffolding (`mcq/new`, `mcq/[id]`, `api/mcqs/[id]`) — implement during Phases 3–4
+- MCQ API routes live under `src/app/api/mcqs/`
 - Auth sprint complete: 49 tests, D1 `users` table, production deployed
 - Phase 1: `migrations/0002_create_mcq_tables.sql`, `src/lib/db/mcq-schema.test.ts` (8 tests)
 - Phase 2: `src/lib/validators/mcq.ts`, `src/lib/services/mcq-service.ts` (20 tests)
+- Phase 3: `src/app/api/mcqs/` route handlers (13 tests)
