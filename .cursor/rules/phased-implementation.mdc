@@ -1,0 +1,52 @@
+---
+description: Phase-gated PRD implementation — stop for approval, then commit and push each phase to the current branch
+alwaysApply: true
+---
+
+# Phased Implementation Workflow
+
+Technical PRDs under `ai-workspace/` (e.g. `mcq-crud_prd.md`) define work in **Implementation Phases**.
+Follow this workflow whenever implementing a phased PRD.
+
+## One phase at a time
+
+1. Read the PRD **Scope** and the target phase's tasks and acceptance criteria.
+2. Implement **only that phase** using TDD where the PRD requires it (red → green → verify).
+3. Update the PRD: phase status (`PLANNED` → `IN PROGRESS` → `COMPLETED`), checkboxes, and verification notes.
+4. Run verification for that phase (`npm run test`, and `npm run lint` / `npm run build` when the PRD calls for them).
+
+## Stop for user approval
+
+When a phase is complete:
+
+- **Stop.** Do not start the next phase in the same turn.
+- Summarize what was delivered, test results, and what the next phase will do.
+- Wait for explicit user approval (e.g. "approved", "continue with phase N", "looks good").
+
+Never skip the review gate, even if the next phase seems obvious.
+
+## Commit and push after approval
+
+After the user approves the completed phase (or explicitly asks to push that phase):
+
+1. Confirm you are on the intended branch (`git branch --show-current`). Use the **current branch** — do not create or switch branches unless the user asks.
+2. Stage **only** files for that phase (and PRD updates). Do not commit `.next/`, `.wrangler/`, unrelated `package-lock.json` churn, or secrets.
+3. Commit with a clear, phase-scoped message, for example:
+   - `MCQ Phase 3: add API route handlers for CRUD and attempts`
+4. Push to the current branch's remote:
+   - `git push origin HEAD`
+   - Use `-u` only when the branch has no upstream yet.
+5. Report the commit hash and branch URL.
+
+Do **not** commit or push until the phase is complete and the user has approved (or explicitly requested the push).
+
+## Git safety
+
+- Never force-push, amend unless the user's rules allow it, or run destructive git commands.
+- Never update git config.
+- Do not deploy (`npm run deploy`) or apply remote D1 migrations unless explicitly asked.
+
+## Source of truth
+
+- Phase boundaries and deliverables live in the active PRD under `ai-workspace/`.
+- If the PRD and conversation disagree, follow the PRD and ask the user before expanding scope.
