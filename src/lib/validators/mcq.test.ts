@@ -8,7 +8,6 @@ const validChoices = [
 
 const validCreate = {
 	name: "Photosynthesis basics",
-	description: "Grade 8 science",
 	question: "Which organelle performs photosynthesis?",
 	createdByUserId: "user-1",
 	choices: validChoices,
@@ -106,7 +105,6 @@ describe("updateMcqSchema", () => {
 		expect(
 			updateMcqSchema.safeParse({
 				name: validCreate.name,
-				description: validCreate.description,
 				question: validCreate.question,
 				choices: validChoices,
 			}).success,

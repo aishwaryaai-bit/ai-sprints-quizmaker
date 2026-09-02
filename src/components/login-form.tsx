@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { hashPasswordClient } from "@/lib/password-client";
+import { storeUserId } from "@/lib/auth-session";
 
 export function LoginForm({
 	className,
@@ -47,11 +48,18 @@ export function LoginForm({
 				body: JSON.stringify({ usernameOrEmail, passwordHash }),
 			});
 
-			const body = (await response.json()) as { error?: string };
+			const body = (await response.json()) as {
+				error?: string;
+				user?: { id: string };
+			};
 
 			if (!response.ok) {
 				setError(body.error ?? "Invalid username or password");
 				return;
+			}
+
+			if (body.user?.id) {
+				storeUserId(body.user.id);
 			}
 
 			router.push("/mcq");

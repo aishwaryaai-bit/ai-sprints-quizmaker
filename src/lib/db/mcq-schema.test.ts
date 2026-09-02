@@ -10,7 +10,6 @@ const MCQ_MIGRATION_PATTERN = /0002_.*mcq.*\.sql$/i;
 const MCQS_REQUIRED_COLUMNS = [
 	"id",
 	"name",
-	"description",
 	"question",
 	"created_by_user_id",
 	"created_at",
@@ -100,5 +99,13 @@ describe("mcq schema contract", () => {
 		expect(sql).toMatch(/CREATE INDEX\s+idx_mcqs_created_by\s+ON\s+mcqs/i);
 		expect(sql).toMatch(/CREATE INDEX\s+idx_mcq_choices_mcq_id\s+ON\s+mcq_choices/i);
 		expect(sql).toMatch(/CREATE INDEX\s+idx_mcq_attempts_mcq_id\s+ON\s+mcq_attempts/i);
+	});
+
+	it("drops the description column from mcqs", () => {
+		const sql = readFileSync(
+			join(MIGRATIONS_DIR, "0003_drop_mcq_description.sql"),
+			"utf8",
+		);
+		expect(sql).toMatch(/ALTER TABLE\s+mcqs\s+DROP COLUMN\s+description/i);
 	});
 });

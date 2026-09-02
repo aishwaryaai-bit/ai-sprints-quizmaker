@@ -25,7 +25,6 @@ export type McqChoice = {
 export type Mcq = {
 	id: string;
 	name: string;
-	description: string | null;
 	question: string;
 	createdByUserId: string;
 	createdAt: string;
@@ -46,7 +45,6 @@ export type McqAttempt = {
 
 export type CreateMcqServiceInput = {
 	name: string;
-	description?: string | null;
 	question: string;
 	createdByUserId: string;
 	choices: ChoiceInput[];
@@ -54,7 +52,6 @@ export type CreateMcqServiceInput = {
 
 export type UpdateMcqServiceInput = {
 	name: string;
-	description?: string | null;
 	question: string;
 	choices: ChoiceInput[];
 };
@@ -62,7 +59,6 @@ export type UpdateMcqServiceInput = {
 type McqRow = {
 	id: string;
 	name: string;
-	description: string | null;
 	question: string;
 	created_by_user_id: string;
 	created_at: string;
@@ -87,7 +83,7 @@ type AttemptRow = {
 };
 
 const MCQ_SELECT =
-	"SELECT id, name, description, question, created_by_user_id, created_at, updated_at FROM mcqs";
+	"SELECT id, name, question, created_by_user_id, created_at, updated_at FROM mcqs";
 
 const CHOICE_SELECT =
 	"SELECT id, mcq_id, choice_text, is_correct, display_order, created_at FROM mcq_choices";
@@ -100,7 +96,6 @@ function toMcq(row: McqRow): Mcq {
 	return {
 		id: row.id,
 		name: row.name,
-		description: row.description,
 		question: row.question,
 		createdByUserId: row.created_by_user_id,
 		createdAt: row.created_at,
@@ -179,16 +174,11 @@ export function createMcqService(db: D1Database) {
 		async createMcq(input: CreateMcqServiceInput): Promise<McqWithChoices> {
 			const result = await db
 				.prepare(
-					`INSERT INTO mcqs (name, description, question, created_by_user_id)
-           VALUES (?1, ?2, ?3, ?4)
-           RETURNING id, name, description, question, created_by_user_id, created_at, updated_at`,
+					`INSERT INTO mcqs (name, question, created_by_user_id)
+           VALUES (?1, ?2, ?3)
+           RETURNING id, name, question, created_by_user_id, created_at, updated_at`,
 				)
-				.bind(
-					input.name,
-					input.description ?? null,
-					input.question,
-					input.createdByUserId,
-				)
+				.bind(input.name, input.question, input.createdByUserId)
 				.all<McqRow>();
 
 			const mcqRow = getFirstRow(result.results);
@@ -215,11 +205,11 @@ export function createMcqService(db: D1Database) {
 			const result = await db
 				.prepare(
 					`UPDATE mcqs
-           SET name = ?1, description = ?2, question = ?3, updated_at = CURRENT_TIMESTAMP
-           WHERE id = ?4
-           RETURNING id, name, description, question, created_by_user_id, created_at, updated_at`,
+           SET name = ?1, question = ?2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = ?3
+           RETURNING id, name, question, created_by_user_id, created_at, updated_at`,
 				)
-				.bind(input.name, input.description ?? null, input.question, id)
+				.bind(input.name, input.question, id)
 				.all<McqRow>();
 
 			const mcqRow = getFirstRow(result.results);

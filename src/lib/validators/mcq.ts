@@ -15,13 +15,6 @@ const choicesArraySchema = z
 
 const mcqFieldsSchema = z.object({
 	name: z.string().trim().min(1, "Name is required").max(200),
-	description: z
-		.string()
-		.trim()
-		.max(500)
-		.optional()
-		.nullable()
-		.transform((value) => value ?? null),
 	question: z.string().trim().min(1, "Question is required").max(5000),
 	choices: choicesArraySchema,
 });

@@ -30,7 +30,6 @@ import { DELETE, GET, PUT } from "./route";
 const sampleMcq: McqWithChoices = {
 	id: "mcq-1",
 	name: "Photosynthesis basics",
-	description: "Grade 8 science",
 	question: "Which organelle performs photosynthesis?",
 	createdByUserId: "user-1",
 	createdAt: "2026-01-01 00:00:00",
@@ -55,7 +54,6 @@ const sampleMcq: McqWithChoices = {
 
 const validUpdateBody = {
 	name: "Updated title",
-	description: "Grade 8 science",
 	question: "Which organelle performs photosynthesis?",
 	choices: [
 		{ choiceText: "Mitochondria", isCorrect: false },

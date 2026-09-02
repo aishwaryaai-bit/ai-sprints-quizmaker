@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { hashPasswordClient } from "@/lib/password-client";
+import { storeUserId } from "@/lib/auth-session";
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 	const router = useRouter();
@@ -64,11 +65,18 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 				}),
 			});
 
-			const body = (await response.json()) as { error?: string };
+			const body = (await response.json()) as {
+				error?: string;
+				user?: { id: string };
+			};
 
 			if (!response.ok) {
 				setError(body.error ?? "Registration failed. Please try again.");
 				return;
+			}
+
+			if (body.user?.id) {
+				storeUserId(body.user.id);
 			}
 
 			router.push("/mcq");

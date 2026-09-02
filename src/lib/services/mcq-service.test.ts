@@ -8,7 +8,6 @@ import {
 const mcqRow = {
 	id: "mcq-1",
 	name: "Photosynthesis basics",
-	description: "Grade 8 science",
 	question: "Which organelle performs photosynthesis?",
 	created_by_user_id: "user-1",
 	created_at: "2026-01-01 00:00:00",
@@ -37,7 +36,6 @@ const choiceRows = [
 const mcqWithChoices = {
 	id: "mcq-1",
 	name: "Photosynthesis basics",
-	description: "Grade 8 science",
 	question: "Which organelle performs photosynthesis?",
 	createdByUserId: "user-1",
 	createdAt: "2026-01-01 00:00:00",
@@ -85,7 +83,6 @@ describe("createMcqService", () => {
 			{
 				id: "mcq-1",
 				name: "Photosynthesis basics",
-				description: "Grade 8 science",
 				question: "Which organelle performs photosynthesis?",
 				createdByUserId: "user-1",
 				createdAt: "2026-01-01 00:00:00",
@@ -105,7 +102,6 @@ describe("createMcqService", () => {
 		const service = createMcqService(db);
 		const mcq = await service.createMcq({
 			name: mcqRow.name,
-			description: mcqRow.description,
 			question: mcqRow.question,
 			createdByUserId: mcqRow.created_by_user_id,
 			choices: [
@@ -143,7 +139,6 @@ describe("createMcqService", () => {
 		const service = createMcqService(db);
 		const mcq = await service.updateMcq("mcq-1", {
 			name: "Updated name",
-			description: mcqRow.description,
 			question: mcqRow.question,
 			choices: [
 				{ choiceText: "Mitochondria", isCorrect: false },

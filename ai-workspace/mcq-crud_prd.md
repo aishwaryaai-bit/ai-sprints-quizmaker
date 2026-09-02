@@ -1,5 +1,5 @@
 Date created: September 1, 2026
-Date last modified: September 1, 2026 (Phase 3 complete)
+Date last modified: September 2, 2026 (removed `description` column; list table shows `question`)
 
 # MCQ Create, Read, Update, and Delete - Technical PRD
 
@@ -22,7 +22,7 @@ We believe that providing full MCQ CRUD (create, read, update, delete) with a sh
 ### In Scope
 
 - **Three D1 tables:** `mcqs`, `mcq_choices`, and `mcq_attempts` (see Database Schema)
-- **D1 migration** `0002_create_mcq_tables.sql` applied locally only
+- **D1 migrations** `0002_create_mcq_tables.sql` and `0003_drop_mcq_description.sql` applied locally only
 - **MCQ service** (`src/lib/services/mcq-service.ts`) — CRUD for MCQs and choices; create attempts; backed by prepared D1 statements
 - **Zod validators** (`src/lib/validators/mcq.ts`) for create, update, and attempt payloads
 - **API route handlers:**
@@ -38,11 +38,11 @@ We believe that providing full MCQ CRUD (create, read, update, delete) with a sh
   - **`/mcq/[id]/edit`** — edit existing MCQ
   - **`/mcq/[id]/preview`** — read-only question with selectable choices; submit records attempt and shows result
 - **Create/edit form behavior:**
-  - Fields: name, description (optional), question text
+  - Fields: name, question text
   - Choices: **2 shown by default**, user can add up to **6**, remove down to **2**
   - Exactly **one** choice marked as correct (radio selection)
   - **Save** and **Cancel** buttons (Cancel returns to `/mcq`)
-- **List table columns:** name, description (truncated if long), actions (vertical ellipsis → dropdown)
+- **List table columns:** name, question (truncated if long), actions (vertical ellipsis → dropdown)
 - **Delete confirmation** via shadcn `AlertDialog` before calling DELETE API
 - **Test-driven development with Vitest** — each phase begins with failing tests (red), then implements until green
 - **Phase gates:** stop at the end of each phase for product-owner review before starting the next phase
@@ -64,7 +64,7 @@ We believe that providing full MCQ CRUD (create, read, update, delete) with a sh
 
 ### Cut
 
-- **Separate description from question** — the user asked for both a `question` field and a description column in the list table; we keep a short optional `description` for the table and a required `question` for the full prompt shown in preview/edit. A single combined field was considered but splits list metadata from assessment content.
+- **Optional `description` field** — removed after review; `name` is the short list title and `question` is the full prompt (truncated in the list table). Migration `0003_drop_mcq_description.sql` drops the column from D1.
 - **Soft delete** — hard delete with `ON DELETE CASCADE` is simpler for a teaching sprint; archived questions can be added later.
 - **Choice shuffle on preview** — choices display in `display_order` for now.
 - **Server-side session for `created_by_user_id`** — deferred until a session sprint; create payload includes `createdByUserId` until then.
@@ -82,7 +82,6 @@ Binding: `DB` (existing in `wrangler.jsonc`)
 CREATE TABLE mcqs (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   name TEXT NOT NULL,
-  description TEXT,
   question TEXT NOT NULL,
   created_by_user_id TEXT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -121,8 +120,7 @@ CREATE INDEX idx_mcq_attempts_mcq_id ON mcq_attempts (mcq_id);
 |-------|--------|------|-------|
 | `mcqs` | `id` | TEXT PK | Random 16-byte hex string |
 | `mcqs` | `name` | TEXT NOT NULL | Short title for list table |
-| `mcqs` | `description` | TEXT | Optional subtitle for list table |
-| `mcqs` | `question` | TEXT NOT NULL | Full question prompt (preview/edit) |
+| `mcqs` | `question` | TEXT NOT NULL | Full question prompt (truncated in list; full text on edit/preview) |
 | `mcqs` | `created_by_user_id` | TEXT NOT NULL FK | References `users.id` |
 | `mcqs` | `created_at` / `updated_at` | DATETIME | Audit timestamps |
 | `mcq_choices` | `mcq_id` | TEXT NOT NULL FK | Parent MCQ; cascade delete |
@@ -140,6 +138,7 @@ CREATE INDEX idx_mcq_attempts_mcq_id ON mcq_attempts (mcq_id);
 3. Apply locally: `npx wrangler d1 migrations apply quizmaker-db --local`
 4. Run `npm run cf-typegen` (no new binding, but keep types current)
 5. **Do not** apply `--remote` unless the user explicitly requests it
+6. After removing the unused `description` column: add `migrations/0003_drop_mcq_description.sql` (`ALTER TABLE mcqs DROP COLUMN description;`) and apply locally
 
 ---
 
@@ -187,7 +186,7 @@ List all MCQs for the workspace table.
 
 | Status | Body | Condition |
 |--------|------|-----------|
-| 200 | `{ "mcqs": [ { "id", "name", "description", "question", "createdByUserId", "createdAt", "updatedAt" } ] }` | Success |
+| 200 | `{ "mcqs": [ { "id", "name", "question", "createdByUserId", "createdAt", "updatedAt" } ] }` | Success |
 | 500 | `{ "error": "Internal server error" }` | Unexpected failure |
 
 ---
@@ -201,7 +200,6 @@ Create a new MCQ with choices.
 ```json
 {
   "name": "Photosynthesis basics",
-  "description": "Grade 8 science unit 3",
   "question": "Which organelle performs photosynthesis?",
   "createdByUserId": "abc123",
   "choices": [
@@ -215,7 +213,7 @@ Create a new MCQ with choices.
 
 | Status | Body | Condition |
 |--------|------|-----------|
-| 201 | `{ "mcq": { "id", "name", "description", "question", "createdByUserId", "createdAt", "updatedAt", "choices": [...] } }` | Created |
+| 201 | `{ "mcq": { "id", "name", "question", "createdByUserId", "createdAt", "updatedAt", "choices": [...] } }` | Created |
 | 400 | `{ "error": "Validation failed", "details": [...] }` | Invalid payload |
 | 404 | `{ "error": "User not found" }` | `createdByUserId` does not exist (optional check) |
 | 500 | `{ "error": "Internal server error" }` | Unexpected failure |
@@ -305,7 +303,7 @@ All UI uses **shadcn/ui** on **Base UI** (`base-nova` style), **Tailwind CSS v4*
 | `Card`, `Field`, `Input` | Installed | Form layout |
 | `DropdownMenu` | **Add in Phase 4** | Row actions (⋮ menu) |
 | `AlertDialog` | **Add in Phase 4** | Delete confirmation |
-| `Textarea` | **Add in Phase 4** | Question (and optional description) |
+| `Textarea` | **Add in Phase 4** | Question prompt |
 | `RadioGroup` | **Add in Phase 4** | Mark correct choice; preview selection |
 
 Install before Phase 4 UI work:
@@ -329,7 +327,7 @@ Replace the current stub card with:
 
 - Page heading: **MCQ Test Bank**
 - Primary **Create MCQ** button → `/mcq/new`
-- shadcn `Table` with columns: **Name**, **Description**, **Actions**
+- shadcn `Table` with columns: **Name**, **Question**, **Actions**
 - Actions column: `DropdownMenu` trigger with `MoreVertical` icon (vertical ellipsis)
   - **Edit** → `/mcq/[id]/edit`
   - **Preview** → `/mcq/[id]/preview`
@@ -368,7 +366,6 @@ Replace the current stub card with:
 | Field | Validation |
 |-------|------------|
 | Name | Required, max 200 chars |
-| Description | Optional, max 500 chars |
 | Question | Required, max 5000 chars |
 | Choices (2–6) | Each text required; exactly one `isCorrect` |
 
@@ -434,7 +431,8 @@ Reuse existing project conventions (see auth PRD):
 **Tests to write first (`src/lib/db/mcq-schema.test.ts`):**
 
 - Migration file exists and contains `CREATE TABLE mcqs`, `mcq_choices`, `mcq_attempts`
-- `mcqs` has columns: `id`, `name`, `description`, `question`, `created_by_user_id`, `created_at`, `updated_at`
+- `mcqs` has columns: `id`, `name`, `question`, `created_by_user_id`, `created_at`, `updated_at`
+- `0003_drop_mcq_description.sql` drops the `description` column from `mcqs`
 - `mcq_choices` has FK to `mcqs` with `ON DELETE CASCADE`
 - `mcq_attempts` has FKs to `mcqs` and `mcq_choices`
 - Indexes exist on foreign-key columns
@@ -455,17 +453,20 @@ Reuse existing project conventions (see auth PRD):
 **Deliverables:**
 
 - `migrations/0002_create_mcq_tables.sql`
+- `migrations/0003_drop_mcq_description.sql`
 - `src/lib/db/mcq-schema.test.ts`
 
-**Phase 1 verification (September 1, 2026):**
+**Phase 1 verification (September 1, 2026; updated September 2, 2026):**
 
 ```
-npm run test -- src/lib/db/mcq-schema.test.ts  → 8 passed
-npm run test                                    → 57 passed (13 files)
-npx wrangler d1 migrations apply quizmaker-db --local → 0001 + 0002 applied
+npm run test -- src/lib/db/mcq-schema.test.ts  → 9 passed
+npm run test                                    → 102 passed (21 files)
+npx wrangler d1 migrations apply quizmaker-db --local → 0001 + 0002 + 0003 applied
 ```
 
-Local `mcqs` columns confirmed: `id`, `name`, `description`, `question`, `created_by_user_id`, `created_at`, `updated_at`.
+Local `mcqs` columns confirmed: `id`, `name`, `question`, `created_by_user_id`, `created_at`, `updated_at`.
+
+**Schema note:** `0002` originally created `mcqs.description`; product review removed it as redundant with `question`. `0003` drops the column; service, validators, API, and UI no longer reference `description`.
 
 **⏸ Stop for review before Phase 2.**
 
@@ -601,7 +602,7 @@ npm run lint                      → clean (no errors in src)
 
 ---
 
-### Phase 4: UI Pages and Components - PLANNED
+### Phase 4: UI Pages and Components - COMPLETED
 
 **Objective:** Teachers can list, create, edit, preview, and delete MCQs via the browser; components covered by Testing Library tests.
 
@@ -624,7 +625,7 @@ npm run lint                      → clean (no errors in src)
 
 **`src/components/mcq-form.test.tsx`**
 
-- Renders name, description, question, 2 default choices
+- Renders name, question, 2 default choices
 - Can add/remove choices within 2–6 bounds
 - Submit POST (create) or PUT (edit) with correct payload
 - Cancel navigates to `/mcq`
@@ -646,15 +647,28 @@ npm run lint                      → clean (no errors in src)
 
 **Phase acceptance criteria:**
 
-- [ ] All Phase 4 component tests pass
-- [ ] `/mcq` shows table instead of stub
-- [ ] Create → save → list shows new row
-- [ ] Edit, preview, and delete flows work in `npm run preview`
+- [x] All Phase 4 component tests pass
+- [x] `/mcq` shows table instead of stub
+- [ ] Create → save → list shows new row (manual preview smoke in Phase 5)
+- [ ] Edit, preview, and delete flows work in `npm run preview` (Phase 5)
 
 **Deliverables:**
 
 - Three client components + tests
 - Four page routes under `src/app/mcq/`
+- shadcn components: `dropdown-menu`, `alert-dialog`, `textarea`, `radio-group`
+- `src/lib/auth-session.ts` (stores user id after login/register for MCQ create)
+
+**Phase 4 verification (September 1, 2026; updated September 2, 2026):**
+
+```
+npm run test -- src/components/mcq-list.test.tsx src/components/mcq-form.test.tsx src/components/mcq-preview.test.tsx  → 11 passed
+npm run test                                                                                                          → 102 passed (21 files)
+npm run lint                                                                                                          → 1 pre-existing warning in mcq-list.tsx (setState in effect)
+npm run build                                                                                                         → passed
+```
+
+**Post–Phase 4 change:** Removed `description` from MCQ model (migration `0003`, service, validators, API payloads, `McqForm`, and list table column replaced with truncated `question`).
 
 **⏸ Stop for review before Phase 5.**
 
@@ -696,6 +710,7 @@ npm run lint                      → clean (no errors in src)
 | File | Purpose |
 |------|---------|
 | `migrations/0002_create_mcq_tables.sql` | MCQ schema migration |
+| `migrations/0003_drop_mcq_description.sql` | Drops unused `description` column from `mcqs` |
 | `src/lib/db/mcq-schema.test.ts` | Phase 1 schema contract tests |
 | `src/lib/validators/mcq.ts` | Zod schemas for MCQ payloads |
 | `src/lib/services/mcq-service.ts` | D1 access for MCQs, choices, attempts |
@@ -749,7 +764,7 @@ export async function GET() {
 
 ## Acceptance Criteria
 
-- [x] Migration `0002_create_mcq_tables.sql` applied locally with all three tables
+- [x] Migration `0002_create_mcq_tables.sql` and `0003_drop_mcq_description.sql` applied locally with all three tables
 - [x] Phase 1 schema contract tests pass
 - [x] MCQ service supports list, get, create, update, delete, and createAttempt
 - [x] Phase 2 unit tests pass (validators + service)
@@ -757,11 +772,11 @@ export async function GET() {
 - [x] Exactly one correct choice enforced on create and update
 - [x] Phase 3 route handler tests pass
 - [x] List, create, get, update, delete, and attempt endpoints return documented status codes
-- [ ] Phase 4 component tests pass
-- [ ] `/mcq` displays shadcn table with name, description, and actions dropdown
-- [ ] Create and edit forms support 2–6 choices with save/cancel
-- [ ] Preview records attempt with correct/incorrect result
-- [ ] Delete shows confirmation dialog before removal
+- [x] Phase 4 component tests pass
+- [x] `/mcq` displays shadcn table with name, question, and actions dropdown
+- [x] Create and edit forms support 2–6 choices with save/cancel
+- [x] Preview records attempt with correct/incorrect result
+- [x] Delete shows confirmation dialog before removal
 - [ ] `npm run test` passes (full suite)
 - [ ] `npm run lint` and `npm run build` pass
 - [ ] Manual preview smoke test documented
@@ -814,7 +829,7 @@ export async function GET() {
 ### User Experience Risks
 
 - **Risk:** Long questions break table layout.
-- **Mitigation:** Description column truncated with `truncate` / max-width; full question only on edit/preview.
+- **Mitigation:** Question column truncated with `truncate` / max-width; full question on edit/preview pages.
 
 - **Risk:** Users forget to mark a correct choice.
 - **Mitigation:** Client + server validation requiring exactly one `isCorrect`.
@@ -850,16 +865,15 @@ When working with this PRD:
 
 ## Current Status
 
-**Last Updated:** September 1, 2026  
-**Current Phase:** Phase 3 — API Route Handlers (complete; awaiting review)  
-**Status:** Phase 3 COMPLETED — stop for product-owner review before Phase 4  
-**Next Steps:** Review Phase 3 deliverables; upon approval, begin Phase 4 (UI pages and components)
+**Last Updated:** September 2, 2026  
+**Current Phase:** Phase 4 — UI Pages and Components (complete; awaiting review)  
+**Status:** Phase 4 COMPLETED — stop for product-owner review before Phase 5  
+**Next Steps:** Review Phase 4 deliverables (including `description` removal); upon approval, commit/push and begin Phase 5 (verification)
 
 **Existing codebase notes:**
 
-- `/mcq` stub page exists at `src/app/mcq/page.tsx`
-- MCQ API routes live under `src/app/api/mcqs/`
-- Auth sprint complete: 49 tests, D1 `users` table, production deployed
-- Phase 1: `migrations/0002_create_mcq_tables.sql`, `src/lib/db/mcq-schema.test.ts` (8 tests)
-- Phase 2: `src/lib/validators/mcq.ts`, `src/lib/services/mcq-service.ts` (20 tests)
-- Phase 3: `src/app/api/mcqs/` route handlers (13 tests)
+- MCQ workspace at `/mcq` with list table (name + truncated question), create/edit/preview pages
+- MCQ API routes under `src/app/api/mcqs/` (no `description` in request/response bodies)
+- Phase 1–3 complete on `feature/mcq-crud`
+- Phase 4: `McqList`, `McqForm`, `McqPreview` + 11 component tests (102 total tests)
+- Migration `0003_drop_mcq_description.sql` applied locally

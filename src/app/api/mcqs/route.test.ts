@@ -28,7 +28,6 @@ import { GET, POST } from "./route";
 
 const validCreateBody = {
 	name: "Photosynthesis basics",
-	description: "Grade 8 science",
 	question: "Which organelle performs photosynthesis?",
 	createdByUserId: "user-1",
 	choices: [
@@ -40,7 +39,6 @@ const validCreateBody = {
 const sampleMcq: McqWithChoices = {
 	id: "mcq-1",
 	name: "Photosynthesis basics",
-	description: "Grade 8 science",
 	question: "Which organelle performs photosynthesis?",
 	createdByUserId: "user-1",
 	createdAt: "2026-01-01 00:00:00",
