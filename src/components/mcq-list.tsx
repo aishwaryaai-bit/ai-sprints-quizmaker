@@ -32,6 +32,21 @@ import {
 } from "@/components/ui/table";
 import type { Mcq } from "@/lib/services/mcq-service";
 
+async function fetchMcqs(): Promise<{ mcqs: Mcq[]; error: string | null }> {
+	try {
+		const response = await fetch("/api/mcqs");
+		const body = (await response.json()) as { mcqs?: Mcq[]; error?: string };
+
+		if (!response.ok) {
+			return { mcqs: [], error: body.error ?? "Failed to load questions." };
+		}
+
+		return { mcqs: body.mcqs ?? [], error: null };
+	} catch {
+		return { mcqs: [], error: "Failed to load questions." };
+	}
+}
+
 export function McqList() {
 	const router = useRouter();
 	const [mcqs, setMcqs] = useState<Mcq[]>([]);
@@ -40,32 +55,35 @@ export function McqList() {
 	const [deleteTarget, setDeleteTarget] = useState<Mcq | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
 
-	const loadMcqs = useCallback(async () => {
-		setLoading(true);
+	const loadMcqs = useCallback(async (options?: { showLoading?: boolean }) => {
+		if (options?.showLoading ?? true) {
+			setLoading(true);
+		}
 		setError(null);
 
-		try {
-			const response = await fetch("/api/mcqs");
-			const body = (await response.json()) as { mcqs?: Mcq[]; error?: string };
-
-			if (!response.ok) {
-				setError(body.error ?? "Failed to load questions.");
-				setMcqs([]);
-				return;
-			}
-
-			setMcqs(body.mcqs ?? []);
-		} catch {
-			setError("Failed to load questions.");
-			setMcqs([]);
-		} finally {
-			setLoading(false);
-		}
+		const { mcqs: nextMcqs, error: nextError } = await fetchMcqs();
+		setMcqs(nextMcqs);
+		setError(nextError);
+		setLoading(false);
 	}, []);
 
 	useEffect(() => {
-		void loadMcqs();
-	}, [loadMcqs]);
+		let cancelled = false;
+
+		void (async () => {
+			const { mcqs: nextMcqs, error: nextError } = await fetchMcqs();
+			if (cancelled) {
+				return;
+			}
+			setMcqs(nextMcqs);
+			setError(nextError);
+			setLoading(false);
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	async function handleDeleteConfirm() {
 		if (!deleteTarget) {

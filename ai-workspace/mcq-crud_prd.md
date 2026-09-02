@@ -1,5 +1,5 @@
 Date created: September 1, 2026
-Date last modified: September 2, 2026 (removed `description` column; list table shows `question`)
+Date last modified: September 2, 2026 (Phase 5 verification complete)
 
 # MCQ Create, Read, Update, and Delete - Technical PRD
 
@@ -649,8 +649,8 @@ npm run lint                      → clean (no errors in src)
 
 - [x] All Phase 4 component tests pass
 - [x] `/mcq` shows table instead of stub
-- [ ] Create → save → list shows new row (manual preview smoke in Phase 5)
-- [ ] Edit, preview, and delete flows work in `npm run preview` (Phase 5)
+- [x] Create → save → list shows new row (manual preview smoke in Phase 5)
+- [x] Edit, preview, and delete flows work in `npm run preview` (Phase 5)
 
 **Deliverables:**
 
@@ -674,7 +674,7 @@ npm run build                                                                   
 
 ---
 
-### Phase 5: Verification - PLANNED
+### Phase 5: Verification - COMPLETED
 
 **Objective:** Full test suite green; MCQ feature meets acceptance criteria; builds cleanly.
 
@@ -689,15 +689,30 @@ npm run build                                                                   
 
 **Phase acceptance criteria:**
 
-- [ ] Full Vitest suite passes
-- [ ] `npm run lint` and `npm run build` pass
-- [ ] Manual preview smoke documented
+- [x] Full Vitest suite passes
+- [x] `npm run lint` and `npm run build` pass
+- [x] Manual preview smoke documented
 
 **Deliverables:**
 
 - Green test suite
-- Updated smoke script (if extended)
+- Updated smoke script (`scripts/preview-smoke-test.mjs` — auth + MCQ CRUD + attempt + page checks)
 - PRD acceptance criteria marked complete
+
+**Phase 5 verification (September 2, 2026):**
+
+```
+npm run test                    → 102 passed (21 files)
+npm run lint                    → clean
+npm run build                   → passed
+npx wrangler d1 migrations apply quizmaker-db --local → 0001 + 0002 + 0003 applied
+npm run preview                 → Ready on http://127.0.0.1:8787
+npm run smoke:preview           → all steps passed (register, auth, mcq-create/list/get/update/attempt/delete, pages)
+```
+
+**Smoke script MCQ flow:** register user → POST `/api/mcqs` → GET list/get → PUT update → POST attempt (uses choice id from update response, since update replaces choices) → DELETE → verify `/mcq` and `/mcq/new` pages return 200.
+
+**Lint fix:** refactored `McqList` initial fetch to avoid synchronous `setState` in `useEffect`.
 
 **⏸ Stop for final review.**
 
@@ -758,7 +773,7 @@ export async function GET() {
 - **Cascade deletes:** Deleting an MCQ removes its choices and attempts automatically.
 - **Correct answer in GET:** Edit and preview pages receive `isCorrect` on choices; preview UI must not highlight the correct choice before the user submits.
 - **Local vs preview:** D1 requires Workers runtime — use `npm run preview` for end-to-end MCQ API tests; `npm run dev` serves UI without `env.DB`.
-- **Existing stub:** `src/app/mcq/page.tsx` currently shows "Coming Soon"; Phase 4 replaces it with `McqList`.
+- **Preview smoke:** Run `npm run preview` in one terminal, then `npm run smoke:preview` in another (targets `http://127.0.0.1:8787` by default).
 
 ---
 
@@ -777,9 +792,9 @@ export async function GET() {
 - [x] Create and edit forms support 2–6 choices with save/cancel
 - [x] Preview records attempt with correct/incorrect result
 - [x] Delete shows confirmation dialog before removal
-- [ ] `npm run test` passes (full suite)
-- [ ] `npm run lint` and `npm run build` pass
-- [ ] Manual preview smoke test documented
+- [x] `npm run test` passes (full suite)
+- [x] `npm run lint` and `npm run build` pass
+- [x] Manual preview smoke test documented
 
 ---
 
@@ -838,12 +853,15 @@ export async function GET() {
 
 ## Troubleshooting Guide
 
-_(Populate during implementation.)_
+### MCQ API returns 500 on preview
+**Problem:** Create/list MCQ fails with internal server error.  
+**Cause:** D1 not available — running `npm run dev` instead of `npm run preview`.  
+**Solution:** Use `npm run preview` for Workers + D1 runtime; apply migrations locally first.
 
-### Common Issue Name
-**Problem:** TBD  
-**Cause:** TBD  
-**Solution:** TBD  
+### Preview smoke `mcq-attempt` returns 404
+**Problem:** Attempt fails with "Choice not found" after a successful update.  
+**Cause:** `updateMcq` replaces all choices with new IDs.  
+**Solution:** Use a `choiceId` from the update response, not the create response.
 
 ---
 
@@ -866,14 +884,14 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated:** September 2, 2026  
-**Current Phase:** Phase 4 — UI Pages and Components (complete; awaiting review)  
-**Status:** Phase 4 COMPLETED — stop for product-owner review before Phase 5  
-**Next Steps:** Review Phase 4 deliverables (including `description` removal); upon approval, commit/push and begin Phase 5 (verification)
+**Current Phase:** Phase 5 — Verification (complete)  
+**Status:** MCQ CRUD feature complete — awaiting final product-owner sign-off  
+**Next Steps:** Final review; merge `feature/mcq-crud` when approved
 
 **Existing codebase notes:**
 
 - MCQ workspace at `/mcq` with list table (name + truncated question), create/edit/preview pages
 - MCQ API routes under `src/app/api/mcqs/` (no `description` in request/response bodies)
-- Phase 1–3 complete on `feature/mcq-crud`
-- Phase 4: `McqList`, `McqForm`, `McqPreview` + 11 component tests (102 total tests)
+- Phases 1–5 complete on `feature/mcq-crud` (commit `3fe0da5` + Phase 5 fixes pending commit)
+- 102 Vitest tests; `npm run smoke:preview` covers auth + full MCQ API lifecycle
 - Migration `0003_drop_mcq_description.sql` applied locally
