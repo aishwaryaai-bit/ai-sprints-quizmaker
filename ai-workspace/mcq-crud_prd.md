@@ -1,13 +1,13 @@
 Date created: September 1, 2026
-Date last modified: September 2, 2026 (Phase 5 verification complete)
+Date last modified: September 2, 2026 (implementation complete; production verified)
 
 # MCQ Create, Read, Update, and Delete - Technical PRD
 
 ## Overview/Problem
 
-Teachers using the Greenfield Quiz Maker can register and log in, but the `/mcq` workspace is still a stub. They cannot yet build the shared multiple-choice question bank that is the core purpose of the application.
+Teachers using the Greenfield Quiz Maker can register, log in, and manage a shared multiple-choice question bank at `/mcq`. The MCQ CRUD feature is **implemented and deployed to production** — create, edit, preview (with attempt recording), and delete all work against remote D1.
 
-Without MCQ authoring, there is no content to preview, attempt, or collaborate on. Teachers need to create questions with named choices, edit them over time, remove outdated items, and preview how a question behaves when a learner selects an answer — including recording whether the attempt was correct.
+This PRD records the phased delivery of that feature (Phases 1–5 complete).
 
 ---
 
@@ -22,7 +22,7 @@ We believe that providing full MCQ CRUD (create, read, update, delete) with a sh
 ### In Scope
 
 - **Three D1 tables:** `mcqs`, `mcq_choices`, and `mcq_attempts` (see Database Schema)
-- **D1 migrations** `0002_create_mcq_tables.sql` and `0003_drop_mcq_description.sql` applied locally only
+- **D1 migrations** `0001`–`0003` applied locally and on remote `quizmaker-db`
 - **MCQ service** (`src/lib/services/mcq-service.ts`) — CRUD for MCQs and choices; create attempts; backed by prepared D1 statements
 - **Zod validators** (`src/lib/validators/mcq.ts`) for create, update, and attempt payloads
 - **API route handlers:**
@@ -59,7 +59,6 @@ We believe that providing full MCQ CRUD (create, read, update, delete) with a sh
 - Attempt analytics dashboard
 - Linking attempts to a user account (attempts table stores choice + correctness only for this sprint)
 - End-to-end browser tests (Playwright/Cypress)
-- Remote D1 migration apply or production deploy (user decision, same as project rules)
 - Server Actions for MCQ mutations (this sprint uses HTTP API routes to mirror the auth sprint pattern)
 
 ### Cut
@@ -139,6 +138,7 @@ CREATE INDEX idx_mcq_attempts_mcq_id ON mcq_attempts (mcq_id);
 4. Run `npm run cf-typegen` (no new binding, but keep types current)
 5. **Do not** apply `--remote` unless the user explicitly requests it
 6. After removing the unused `description` column: add `migrations/0003_drop_mcq_description.sql` (`ALTER TABLE mcqs DROP COLUMN description;`) and apply locally
+7. For production: `npx wrangler d1 migrations apply quizmaker-db --remote` (applied September 2, 2026 — all migrations current)
 
 ---
 
@@ -323,7 +323,7 @@ npx shadcn@latest add @shadcn/dropdown-menu @shadcn/alert-dialog @shadcn/textare
 
 #### MCQ List Page (`/mcq`)
 
-Replace the current stub card with:
+Implemented as:
 
 - Page heading: **MCQ Test Bank**
 - Primary **Create MCQ** button → `/mcq/new`
@@ -664,7 +664,7 @@ npm run lint                      → clean (no errors in src)
 ```
 npm run test -- src/components/mcq-list.test.tsx src/components/mcq-form.test.tsx src/components/mcq-preview.test.tsx  → 11 passed
 npm run test                                                                                                          → 102 passed (21 files)
-npm run lint                                                                                                          → 1 pre-existing warning in mcq-list.tsx (setState in effect)
+npm run lint                                                                                                          → clean (McqList effect refactored in Phase 5)
 npm run build                                                                                                         → passed
 ```
 
@@ -692,35 +692,53 @@ npm run build                                                                   
 - [x] Full Vitest suite passes
 - [x] `npm run lint` and `npm run build` pass
 - [x] Manual preview smoke documented
+- [x] Production deploy live and remote D1 migrations applied
+- [x] Manual production verification: create, update, delete, and preview MCQs
 
 **Deliverables:**
 
 - Green test suite
 - Updated smoke script (`scripts/preview-smoke-test.mjs` — auth + MCQ CRUD + attempt + page checks)
 - PRD acceptance criteria marked complete
+- Production deployment to Cloudflare Workers
 
 **Phase 5 verification (September 2, 2026):**
+
+**Local / CI:**
 
 ```
 npm run test                    → 102 passed (21 files)
 npm run lint                    → clean
 npm run build                   → passed
-npx wrangler d1 migrations apply quizmaker-db --local → 0001 + 0002 + 0003 applied
+npx wrangler d1 migrations apply quizmaker-db --local  → 0001 + 0002 + 0003 applied
 npm run preview                 → Ready on http://127.0.0.1:8787
 npm run smoke:preview           → all steps passed (register, auth, mcq-create/list/get/update/attempt/delete, pages)
 ```
+
+**Production (September 2, 2026):**
+
+```
+npm run deploy                                          → deployed to https://ai-spints-quizmaker.aishwarya-ai.workers.dev
+npx wrangler d1 migrations apply quizmaker-db --remote  → No migrations to apply (0001–0003 already applied)
+```
+
+Remote `mcqs` schema confirmed: `id`, `name`, `question`, `created_by_user_id`, `created_at`, `updated_at` (no `description`). Tables: `users`, `mcqs`, `mcq_choices`, `mcq_attempts`.
+
+**Product-owner manual smoke (production):** create MCQ → appears in list → edit → preview with attempt → delete — all verified working.
 
 **Smoke script MCQ flow:** register user → POST `/api/mcqs` → GET list/get → PUT update → POST attempt (uses choice id from update response, since update replaces choices) → DELETE → verify `/mcq` and `/mcq/new` pages return 200.
 
 **Lint fix:** refactored `McqList` initial fetch to avoid synchronous `setState` in `useEffect`.
 
-**⏸ Stop for final review.**
+**Git (branch `feature/mcq-crud`):** `7853a5c` (auth + stub) → Phase 1–3 → `3fe0da5` (Phase 4 UI) → `20985cf` (Phase 5 verification).
+
+**✅ Implementation complete — all phases delivered and signed off.**
 
 ---
 
 ## Technical Implementation Details
 
-### Key Files (planned)
+### Key Files (implemented)
 
 | File | Purpose |
 |------|---------|
@@ -774,12 +792,14 @@ export async function GET() {
 - **Correct answer in GET:** Edit and preview pages receive `isCorrect` on choices; preview UI must not highlight the correct choice before the user submits.
 - **Local vs preview:** D1 requires Workers runtime — use `npm run preview` for end-to-end MCQ API tests; `npm run dev` serves UI without `env.DB`.
 - **Preview smoke:** Run `npm run preview` in one terminal, then `npm run smoke:preview` in another (targets `http://127.0.0.1:8787` by default).
+- **Production URL:** https://ai-spints-quizmaker.aishwarya-ai.workers.dev
+- **Deploy on Windows:** Stop `npm run preview` before `npm run deploy`; if build fails with `EPERM` on `.open-next`, delete that folder and retry.
 
 ---
 
 ## Acceptance Criteria
 
-- [x] Migration `0002_create_mcq_tables.sql` and `0003_drop_mcq_description.sql` applied locally with all three tables
+- [x] Migration `0002_create_mcq_tables.sql` and `0003_drop_mcq_description.sql` applied locally and on remote with all three MCQ tables
 - [x] Phase 1 schema contract tests pass
 - [x] MCQ service supports list, get, create, update, delete, and createAttempt
 - [x] Phase 2 unit tests pass (validators + service)
@@ -795,18 +815,22 @@ export async function GET() {
 - [x] `npm run test` passes (full suite)
 - [x] `npm run lint` and `npm run build` pass
 - [x] Manual preview smoke test documented
+- [x] Production deployed to Cloudflare Workers (`npm run deploy`)
+- [x] Remote D1 migrations current (`0001`–`0003`)
+- [x] Production manual smoke: create, update, delete, and preview MCQs verified by product owner
 
 ---
 
 ## Success Metrics
 
-| Metric | Target | How Measured |
-|--------|--------|--------------|
-| Unit test suite | 100% pass | `npm run test` |
-| MCQ CRUD API | All operations succeed | Route tests + preview smoke |
-| Create-to-list flow | < 30 seconds manual | Time create → save → visible in table |
-| Choice validation | 100% invalid payloads rejected | Validator + route tests |
-| Build health | lint + build + test | CI commands |
+| Metric | Target | How Measured | Status |
+|--------|--------|--------------|--------|
+| Unit test suite | 100% pass | `npm run test` | ✅ 102 passed |
+| MCQ CRUD API | All operations succeed | Route tests + preview smoke | ✅ |
+| Create-to-list flow | < 30 seconds manual | Time create → save → visible in table | ✅ (local + production) |
+| Choice validation | 100% invalid payloads rejected | Validator + route tests | ✅ |
+| Build health | lint + build + test | CI commands | ✅ |
+| Production deploy | Live on Workers + remote D1 | Manual smoke on production URL | ✅ |
 
 ---
 
@@ -818,7 +842,7 @@ export async function GET() {
 |------------|---------|--------|
 | Cloudflare D1 | SQLite for MCQs, choices, attempts | Configured — `quizmaker-db`, binding `DB` |
 | Vitest + Testing Library | TDD | Installed (auth sprint) |
-| shadcn/ui | UI components | Partial — add dropdown-menu, alert-dialog, textarea, radio-group in Phase 4 |
+| shadcn/ui | UI components | Installed — Table, Button, Card, Field, Input, DropdownMenu, AlertDialog, Textarea, RadioGroup |
 
 ### Internal Dependencies
 
@@ -826,7 +850,7 @@ export async function GET() {
 |--------|---------|--------|
 | `users` table + user service | FK `created_by_user_id` | Exists |
 | `src/lib/api/responses.ts` | Shared API error helpers | Exists |
-| Auth pages + `/mcq` stub | Post-login landing | Exists — stub replaced in Phase 4 |
+| Auth pages + `/mcq` workspace | Post-login landing and MCQ test bank | Live in production |
 | `LogoutButton` | Sign out from workspace | Exists |
 
 ---
@@ -863,6 +887,11 @@ export async function GET() {
 **Cause:** `updateMcq` replaces all choices with new IDs.  
 **Solution:** Use a `choiceId` from the update response, not the create response.
 
+### Deploy fails with EPERM on `.open-next` (Windows)
+**Problem:** `npm run deploy` fails with `Permission denied` deleting `.open-next`.  
+**Cause:** `npm run preview` (or `workerd`) still running and locking build output.  
+**Solution:** Stop preview (Ctrl+C), then `Remove-Item -Recurse -Force .open-next` and retry deploy.
+
 ---
 
 ## Notes for AI Agents
@@ -884,14 +913,31 @@ When working with this PRD:
 ## Current Status
 
 **Last Updated:** September 2, 2026  
-**Current Phase:** Phase 5 — Verification (complete)  
-**Status:** MCQ CRUD feature complete — awaiting final product-owner sign-off  
-**Next Steps:** Final review; merge `feature/mcq-crud` when approved
+**Implementation:** **COMPLETE** — all five phases delivered  
+**Production URL:** https://ai-spints-quizmaker.aishwarya-ai.workers.dev  
+**Branch:** `feature/mcq-crud` (commits through `20985cf`)
 
-**Existing codebase notes:**
+### Summary
 
-- MCQ workspace at `/mcq` with list table (name + truncated question), create/edit/preview pages
-- MCQ API routes under `src/app/api/mcqs/` (no `description` in request/response bodies)
-- Phases 1–5 complete on `feature/mcq-crud` (commit `3fe0da5` + Phase 5 fixes pending commit)
-- 102 Vitest tests; `npm run smoke:preview` covers auth + full MCQ API lifecycle
-- Migration `0003_drop_mcq_description.sql` applied locally
+| Phase | Status | Deliverable |
+|-------|--------|-------------|
+| 1 — Database | ✅ COMPLETED | Migrations `0002`, `0003`; schema tests |
+| 2 — Service & validators | ✅ COMPLETED | `mcq-service.ts`, `validators/mcq.ts` |
+| 3 — API routes | ✅ COMPLETED | `/api/mcqs` CRUD + attempts |
+| 4 — UI | ✅ COMPLETED | List, create/edit form, preview pages |
+| 5 — Verification | ✅ COMPLETED | Tests, lint, build, smoke script, production deploy |
+
+### Production verification (product owner, September 2, 2026)
+
+- Remote D1: migrations `0001`–`0003` applied; `mcqs` table without `description` column
+- Deploy: Worker live at production URL above
+- Manual flows confirmed: **create**, **update**, **delete**, and **preview** MCQs
+
+### Codebase reference
+
+- MCQ workspace at `/mcq` — list table (name + truncated question), create/edit/preview pages
+- API routes under `src/app/api/mcqs/`
+- 102 Vitest tests; `npm run smoke:preview` for local end-to-end API checks
+- `createdByUserId` from `sessionStorage` after login/register (interim until session sprint)
+
+**Next sprint (out of scope here):** route protection, server-side session, MCQ ownership validation, pagination/search.
